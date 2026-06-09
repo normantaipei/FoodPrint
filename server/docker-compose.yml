@@ -10,6 +10,13 @@
 #       --base-url http://192.168.x.x:8000 --token <你的讀寫 token>
 #
 # 資料持久化在 named volume（pgdata：Postgres；media：店家照片+縮圖）。
+#
+# name：固定 compose 專案名為 foodprint，不靠目錄名推斷。
+#   否則放在叫 server/ 的目錄時，專案名會變 "server"，可能跟同機其他也住在
+#   server/ 的專案（例如 poseplanner）共用同一組容器 / volume（server_pgdata…），
+#   一邊的 `docker compose down -v` 會把另一邊的資料一起刪掉。固定成 foodprint
+#   後，volume 是 foodprint_pgdata / foodprint_media、容器是 foodprint-db-1…，互不干擾。
+name: foodprint
 
 services:
   db:
