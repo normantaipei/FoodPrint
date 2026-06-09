@@ -1,0 +1,33 @@
+flowchart LR
+    subgraph in["輸入"]
+        U1["Google Maps 連結"]
+        U2["IG / 部落格網址"]
+        U3["店家 / 餐點照片"]
+        U4["一句話描述"]
+    end
+
+    subgraph claude["Claude 端 (Claude Code)"]
+        F["fetch_place.py\n擷取店名/地址/座標\n(免 API key)"]
+        C["Claude 看圖 / 讀資料\n產 description + 結構化標籤\n(依 taxonomy.yaml 約束)"]
+        B["backend.py\nPOST 店家 / 搜尋 / 附近 / 刪除"]
+    end
+
+    subgraph server["自架私有 DB (區網內一台機器)"]
+        API["FastAPI\n/places /search /nearby ..."]
+        PG[("PostgreSQL\nplaces + tags\n(lat/lng 地理欄位)")]
+        MEDIA[["media volume\n照片原圖 + 縮圖"]]
+    end
+
+    U1 --> F
+    U2 --> F
+    U3 --> C
+    U4 --> C
+    F --> C
+    C --> B
+    B -->|"讀寫 token + 區網"| API
+    API --> PG
+    API --> MEDIA
+
+    B -.->|"search / nearby (讀取 token)"| API
+    API -.->|"粗篩候選"| B
+    B -.->|"Claude 語意挑選後回給使用者"| C

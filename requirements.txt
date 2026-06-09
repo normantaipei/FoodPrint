@@ -1,0 +1,14 @@
+# FoodPrint 相依
+#
+# Claude 端（scripts/）：只用 Python 標準庫（urllib / json / hashlib），零安裝即可運作。
+#   - scripts/backend.py   私有 DB 客戶端（POST 店家、搜尋、刪除）→ 標準庫
+#   - scripts/fetch_place.py  從 Google Maps / 社群連結擷取店家 → 標準庫
+#
+# 以下只在「自架 server」那端需要（見 server/api/requirements.txt 才是實際安裝清單）：
+#   - fastapi / uvicorn       HTTP 服務
+#   - psycopg[binary] / psycopg_pool  PostgreSQL 連線
+#   - pyyaml                  解析 taxonomy.yaml（沒裝會用內建最小解析器）
+#   - pillow                  店家照片縮圖（沒裝就不產縮圖，照樣入庫）
+#   - slowapi                 /search /stats 速率限制
+#
+# 一般使用者（只在 Claude 對話裡入庫 / 找店）不需要 pip 安裝任何東西。

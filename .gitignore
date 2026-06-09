@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# FoodPrint — 本地後端設定（含 token，勿進版控）
+data/config.json
+data/images/
+data/thumbs/
+server/.env

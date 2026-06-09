@@ -1,0 +1,50 @@
+# FoodPrint 標籤維度（taxonomy 初始種子）
+#
+# 「維度（category）」是固定的、用來保證一致性；維度底下的「值」是開放的，
+# 可隨入庫成長。server 入庫時用這份檔案判斷一個 tag 該自動採用還是標 proposed：
+#   - tag 的 category 在這裡 → active（既有維度內的新值自動採用）
+#   - tag 的 category 不在這裡 → proposed（全新維度，待你確認或達門檻才升級）
+#
+# 每個維度：
+#   label   給人看的中文名
+#   open    值是否開放成長（true=可自由新增值；料理/招牌菜之類都 true）
+#   seed    初始種子值（會在建庫時 seed 進 tags 表）
+#
+# 註：店家的「地址 / 經緯度 / 價位 / 想去or吃過」是 places 表的欄位，不是 tag；
+#     tag 只放「分類 / 篩選」用的軟性標籤（料理、招牌、氛圍、場合、特色、地區…）。
+
+dimensions:
+  cuisine:
+    label: 料理類型
+    open: true
+    seed: [台式, 日式, 韓式, 義式, 美式, 中式, 泰式, 港式, 火鍋, 燒肉, 拉麵, 居酒屋, 咖啡廳, 早午餐, 甜點, 烘焙, 飲料, 素食]
+
+  dish:
+    label: 招牌 / 必點
+    open: true
+    seed: [牛肉麵, 滷肉飯, 生魚片, 拉麵, 漢堡, 鬆餅, 提拉米蘇, 手沖咖啡]
+
+  meal_type:
+    label: 餐別
+    open: false
+    seed: [早餐, 早午餐, 午餐, 晚餐, 下午茶, 宵夜]
+
+  vibe:
+    label: 氛圍 / 風格
+    open: true
+    seed: [文青, 復古, 網美, 熱鬧, 安靜, 戶外, 景觀, 工業風, 溫馨]
+
+  occasion:
+    label: 場合
+    open: true
+    seed: [約會, 聚餐, 獨食, 商務, 慶生, 家庭, 朋友小酌]
+
+  feature:
+    label: 特色 / 設施
+    open: true
+    seed: [不限時, 有插座, 寵物友善, 包廂, 可訂位, 免服務費, 深夜營業, 停車方便, 可外帶]
+
+  district:
+    label: 地區
+    open: true
+    seed: [信義區, 大安區, 中山區, 中正區, 萬華區, 士林區]

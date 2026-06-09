@@ -1,0 +1,61 @@
+# FoodPrint 私有 DB（自架）— PostgreSQL + 店家/照片接收服務
+#
+# 啟動：
+#   cd server
+#   cp .env.example .env          # 改掉密碼與 token
+#   docker compose up -d --build
+#
+# 之後在 Claude 端把 backend 指向 http://<這台機器的內網IP>:8000：
+#   python3 scripts/backend.py set --backend selfhost \
+#       --base-url http://192.168.x.x:8000 --token <你的讀寫 token>
+#
+# 資料持久化在 named volume（pgdata：Postgres；media：店家照片+縮圖）。
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    # 停用 unix domain socket：在 Proxmox 非特權 LXC 裡跑 Docker 時，AppArmor/seccomp
+    # 會擋掉 AF_UNIX 的 bind()。api 與 healthcheck 都走 TCP，不需要 unix socket。一般主機也無害。
+    command: ["-c", "unix_socket_directories="]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-foodprint}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-foodprint}
+      POSTGRES_DB: ${POSTGRES_DB:-foodprint}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-foodprint} -d ${POSTGRES_DB:-foodprint}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # 預設不對外開 5432（只在 compose 內網給 api 用）。
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-foodprint}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-foodprint}
+      POSTGRES_DB: ${POSTGRES_DB:-foodprint}
+      FOODPRINT_TOKEN: ${FOODPRINT_TOKEN:-}
+      FOODPRINT_READ_TOKEN: ${FOODPRINT_READ_TOKEN:-}
+      FOODPRINT_CORS_ORIGINS: ${FOODPRINT_CORS_ORIGINS:-*}
+      FOODPRINT_DATA: /data
+    volumes:
+      - media:/data
+      # taxonomy.yaml 掛進 /app（seed / 判定 active 用）。
+      - ../taxonomy.yaml:/app/taxonomy.yaml:ro
+    ports:
+      - "${API_PORT:-8000}:8000"
+
+volumes:
+  pgdata:
+  media:
