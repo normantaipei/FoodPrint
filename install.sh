@@ -2,12 +2,18 @@
 #
 # FoodPrint 一鍵安裝 / 部署 —— 從零到「後端 + 地圖前端」全部跑起來。
 #
+# 在一台全新、連 repo 都還沒拉的 VM 上，一條命令搞定（會自動裝 git/Docker、clone、部署）：
+#
+#   curl -fsSL https://raw.githubusercontent.com/normantaipei/FoodPrint/main/install.sh | bash
+#
+# 已經在 repo 內：
 #   bash install.sh            # 安裝 / 升級並啟動
 #   bash install.sh --down     # 停止整個系統（資料保留在 volume）
 #   bash install.sh --logs     # 看即時 log
 #
 # 做的事：
-#   1. 檢查 Docker / docker compose。
+#   0. （bootstrap）不在 repo 內時：自動裝 git/Docker → clone 到 ~/FoodPrint → 重跑自己。
+#   1. 檢查 / 安裝 Docker、偵測 docker compose（必要時用 sudo）。
 #   2. 第一次跑：產 .env（隨機 Postgres 密碼 + 讀寫/唯讀 token），之後沿用不覆寫。
 #   3. 自動避開「已被占用的埠」：API 預設 8000、地圖前端預設 8080，被占用就往後找空的，
 #      並把實際使用的埠寫回 .env（重跑會沿用自己這套，不會亂跳）。
@@ -15,12 +21,11 @@
 #   5. 等後端健康檢查通過，自動把 Claude 端 backend client 指向本機。
 #   6. 印出地圖網址（含區網 IP）與連線狀態。
 #
+# 環境變數（選用）：
+#   FOODPRINT_REPO   要 clone 的 repo（預設 https://github.com/normantaipei/FoodPrint.git）
+#   FOODPRINT_DIR    clone 目的地（預設 $HOME/FoodPrint）
+#
 set -euo pipefail
-
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SERVER_DIR="$REPO_ROOT/server"
-ENV_FILE="$SERVER_DIR/.env"
-ENV_EXAMPLE="$SERVER_DIR/.env.example"
 
 bold() { printf "\033[1m%s\033[0m\n" "$*"; }
 info() { printf "  \033[2m%s\033[0m\n" "$*"; }
@@ -28,22 +33,101 @@ ok()   { printf "  \033[32m✓\033[0m %s\n" "$*"; }
 warn() { printf "  \033[33m!\033[0m %s\n" "$*"; }
 die()  { printf "\033[31m✗ %s\033[0m\n" "$*" >&2; exit 1; }
 
+# root 就不需要 sudo；否則有 sudo 就用。
+SUDO=""
+if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then SUDO="sudo"; fi
+
+REPO_URL="${FOODPRINT_REPO:-https://github.com/normantaipei/FoodPrint.git}"
+TARGET_DIR="${FOODPRINT_DIR:-$HOME/FoodPrint}"
+
+pkg_install() {  # 用偵測到的套件管理器安裝 $@
+  if   command -v apt-get >/dev/null 2>&1; then $SUDO apt-get update -qq && $SUDO apt-get install -y -qq "$@";
+  elif command -v dnf     >/dev/null 2>&1; then $SUDO dnf install -y -q "$@";
+  elif command -v yum     >/dev/null 2>&1; then $SUDO yum install -y -q "$@";
+  elif command -v apk     >/dev/null 2>&1; then $SUDO apk add --no-cache "$@";
+  elif command -v pacman  >/dev/null 2>&1; then $SUDO pacman -Sy --noconfirm "$@";
+  elif command -v zypper  >/dev/null 2>&1; then $SUDO zypper -n install "$@";
+  elif command -v brew    >/dev/null 2>&1; then brew install "$@";
+  else return 1; fi
+}
+
+ensure_git() {
+  command -v git >/dev/null 2>&1 && return
+  info "未偵測到 git，安裝中…"
+  pkg_install git || die "無法自動安裝 git，請手動安裝後重跑。"
+  ok "git 已安裝"
+}
+
+# ── bootstrap：不在 repo 內（含 curl | bash）就裝 git → clone → 重跑自己 ──
+self="${BASH_SOURCE[0]:-$0}"
+self_dir=""
+[ -f "$self" ] && self_dir="$(cd "$(dirname "$self")" 2>/dev/null && pwd)"
+
+if [ -n "$self_dir" ] && [ -f "$self_dir/server/docker-compose.yml" ]; then
+  REPO_ROOT="$self_dir"                       # 已經在 repo 內
+elif [ "${FOODPRINT_BOOTSTRAPPED:-}" != "1" ]; then
+  bold "🍜 FoodPrint bootstrap（這台機器還沒有 repo）"
+  ensure_git
+  if [ -d "$TARGET_DIR/.git" ]; then
+    info "已存在 $TARGET_DIR，更新中…"
+    git -C "$TARGET_DIR" pull --ff-only || warn "git pull 失敗，沿用現有版本"
+  else
+    info "clone $REPO_URL → $TARGET_DIR"
+    git clone --depth 1 "$REPO_URL" "$TARGET_DIR" || die "git clone 失敗（repo 是否為 public？）"
+  fi
+  ok "repo 就緒：$TARGET_DIR"
+  echo
+  exec env FOODPRINT_BOOTSTRAPPED=1 bash "$TARGET_DIR/install.sh" "$@"
+else
+  die "bootstrap 後仍找不到 repo 內容（$TARGET_DIR）。"
+fi
+
+SERVER_DIR="$REPO_ROOT/server"
+ENV_FILE="$SERVER_DIR/.env"
+ENV_EXAMPLE="$SERVER_DIR/.env.example"
+
+# ── Docker：沒裝就裝（Linux 用官方腳本）；決定是否要 sudo 才能用 ──────────
+DOCKER=(docker)
+ensure_docker() {
+  if command -v docker >/dev/null 2>&1; then : ; else
+    case "$(uname -s)" in
+      Linux)
+        info "未偵測到 Docker，使用官方腳本安裝（get.docker.com，需要 root/sudo）…"
+        curl -fsSL https://get.docker.com | $SUDO sh || die "Docker 安裝失敗，請手動安裝後重跑。"
+        $SUDO systemctl enable --now docker 2>/dev/null || $SUDO service docker start 2>/dev/null || true
+        ;;
+      Darwin) die "請先安裝並啟動 Docker Desktop：https://www.docker.com/products/docker-desktop/ 後再重跑。" ;;
+      *) die "未知作業系統，請先自行安裝 Docker 後重跑。" ;;
+    esac
+  fi
+  # daemon 沒起來就試著起
+  if ! docker info >/dev/null 2>&1; then
+    $SUDO systemctl start docker 2>/dev/null || $SUDO service docker start 2>/dev/null || true
+  fi
+  # 仍連不上 → 試 sudo（剛裝完、使用者還沒加進 docker 群組時很常見）
+  if ! docker info >/dev/null 2>&1; then
+    if [ -n "$SUDO" ] && $SUDO docker info >/dev/null 2>&1; then DOCKER=($SUDO docker); else
+      die "Docker 沒在跑或權限不足。請啟動 Docker（或把使用者加進 docker 群組重新登入）後重跑。"
+    fi
+  fi
+}
+
 # ── compose 包裝（在 server/ 目錄內執行；自動偵測 v2 / v1）──────────────
 detect_compose() {
-  if docker compose version >/dev/null 2>&1; then COMPOSE=(docker compose);
-  elif command -v docker-compose >/dev/null 2>&1; then COMPOSE=(docker-compose);
-  else die "找不到 docker compose。請先安裝 Docker Desktop / Docker Engine。"; fi
+  if "${DOCKER[@]}" compose version >/dev/null 2>&1; then COMPOSE=("${DOCKER[@]}" compose);
+  elif command -v docker-compose >/dev/null 2>&1; then COMPOSE=(${SUDO:+$SUDO} docker-compose);
+  else die "找不到 docker compose。請安裝較新的 Docker（內含 compose v2）。"; fi
 }
 dc() { ( cd "$SERVER_DIR" && "${COMPOSE[@]}" "$@" ); }
 
 # ── 子命令：down / logs ────────────────────────────────────────────────
 case "${1:-}" in
   --down|down|stop)
-    detect_compose; bold "停止 FoodPrint…"; dc down; ok "已停止（資料保留在 volume）"; exit 0 ;;
+    ensure_docker; detect_compose; bold "停止 FoodPrint…"; dc down; ok "已停止（資料保留在 volume）"; exit 0 ;;
   --logs|logs)
-    detect_compose; dc logs -f --tail=100; exit 0 ;;
+    ensure_docker; detect_compose; dc logs -f --tail=100; exit 0 ;;
   -h|--help|help)
-    sed -n '3,20p' "$0"; exit 0 ;;
+    sed -n '3,30p' "$0"; exit 0 ;;
 esac
 
 # ── .env helpers（用 python3 做可攜的 upsert/讀取）──────────────────────
@@ -120,9 +204,10 @@ lan_ip() {
 
 # ════════════════════════════════════════════════════════════════════════
 bold "🍜 FoodPrint 一鍵安裝"
+command -v python3 >/dev/null 2>&1 || pkg_install python3 || die "需要 python3，請先安裝。"
+ensure_docker
 detect_compose
-docker info >/dev/null 2>&1 || die "Docker 沒在跑。請先啟動 Docker Desktop / dockerd。"
-ok "Docker 與 docker compose 就緒"
+ok "Docker 與 docker compose 就緒${DOCKER[0]:+（${DOCKER[*]} compose）}"
 
 # 1) .env：第一次產生，之後沿用不覆寫秘密 ----------------------------------
 if [ ! -f "$ENV_FILE" ]; then
@@ -181,8 +266,9 @@ printf "  \033[1m地圖前端\033[0m   http://localhost:%s\n" "$WEB_PORT"
 [ "$IP" != "localhost" ] && printf "             區網其他裝置：http://%s:%s\n" "$IP" "$WEB_PORT"
 printf "  \033[1m後端 API\033[0m   http://localhost:%s   （健康檢查 /health）\n" "$API_PORT"
 echo
+info "專案位置：$REPO_ROOT"
 info "讀寫 token（入庫 / 刪除用）：$RW_TOKEN"
 info "唯讀 token（給只查詢的人）：$RO_TOKEN"
-info "秘密與埠都在 server/.env（不進版控）。停止：bash install.sh --down"
+info "秘密與埠都在 server/.env（不進版控）。停止：bash $REPO_ROOT/install.sh --down"
 echo
 bold "下一步：在 Claude 對話貼 Google Maps 連結 / 照片，說「加進我的口袋名單」，再回地圖頁看 pin 📍"

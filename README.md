@@ -34,7 +34,15 @@
 
 一條命令把**後端（FastAPI + PostgreSQL）＋ 地圖前端**全部建起來並部署。
 腳本會自動產生隨機密碼與 token、**自動避開已被占用的埠**、啟動容器、等健康檢查通過，
-再把 Claude 端的 backend client 指向本機：
+再把 Claude 端的 backend client 指向本機。
+
+**全新、連 repo 都還沒拉的機器**（會自動裝 git/Docker、clone 到 `~/FoodPrint`、部署）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/normantaipei/FoodPrint/main/install.sh | bash
+```
+
+**已經 clone 好 repo**：
 
 ```bash
 bash install.sh
