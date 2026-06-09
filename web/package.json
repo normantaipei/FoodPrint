@@ -1,0 +1,19 @@
+{
+  "name": "foodprint-web",
+  "private": true,
+  "type": "module",
+  "description": "FoodPrint 美食地圖前端 — Nuxt 3（SSR，token 走 server proxy 不外洩）",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "start": "node .output/server/index.mjs",
+    "postinstall": "nuxt prepare"
+  },
+  "devDependencies": {
+    "nuxt": "^3.14.0",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  }
+}

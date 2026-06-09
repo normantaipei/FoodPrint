@@ -25,8 +25,8 @@
    - [scripts/backend.py](scripts/backend.py)：私有 DB 客戶端（`status` / `set` / `place` / `ingest` / `search` / `nearby` / `delete`）。
    - [scripts/fetch_place.py](scripts/fetch_place.py)：從 Google Maps / 社群連結擷取店名/地址/座標（免 API key）。
 3. **server/**（自架）：[FastAPI + PostgreSQL](server/README.md)，`docker compose up` 即可。
-4. **web/**（地圖前端）：[靜態 SPA + Leaflet](web/README.md)（OSM 圖磚，免 API key），
-   由 nginx 反向代理唯讀端點並注入讀取 token——瀏覽器端免持 token、免設 CORS。
+4. **web/**（地圖前端）：[Nuxt 3 SSR + Leaflet](web/README.md)（OSM 圖磚，免 API key），
+   由 Nuxt server route 代理唯讀端點並在 server 端注入讀取 token——瀏覽器端免持 token、免設 CORS。
 
 ---
 

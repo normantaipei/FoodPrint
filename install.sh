@@ -17,7 +17,7 @@
 #   2. 第一次跑：產 .env（隨機 Postgres 密碼 + 讀寫/唯讀 token），之後沿用不覆寫。
 #   3. 自動避開「已被占用的埠」：API 預設 8000、地圖前端預設 8080，被占用就往後找空的，
 #      並把實際使用的埠寫回 .env（重跑會沿用自己這套，不會亂跳）。
-#   4. docker compose up -d --build（後端 + PostgreSQL + nginx 地圖前端）。
+#   4. docker compose up -d --build（後端 + PostgreSQL + Nuxt 地圖前端）。
 #   5. 等後端健康檢查通過，自動把 Claude 端 backend client 指向本機。
 #   6. 印出地圖網址（含區網 IP）與連線狀態。
 #
@@ -237,14 +237,14 @@ if [ -z "$pw" ] || [ "$pw" = "change-me-please" ]; then envset POSTGRES_PASSWORD
 
 RW_TOKEN="$(envget FOODPRINT_TOKEN)"
 RO_TOKEN="$(envget FOODPRINT_READ_TOKEN)"
-# 前端 nginx 代理用的 token：優先唯讀，否則讀寫。
+# 前端 Nuxt server proxy 用的讀取 token：優先唯讀，否則讀寫。
 PROXY_TOKEN="${RO_TOKEN:-$RW_TOKEN}"
 envset FOODPRINT_PROXY_TOKEN "$PROXY_TOKEN"
 
 # 2) 自動避埠 -------------------------------------------------------------
 api_pref="$(envget API_PORT)"; web_pref="$(envget WEB_PORT)"
 API_PORT="$(pick_port "${api_pref:-8000}" api 8000)"
-WEB_PORT="$(pick_port "${web_pref:-8080}" web 80)"
+WEB_PORT="$(pick_port "${web_pref:-8080}" web 3000)"
 [ "$WEB_PORT" = "$API_PORT" ] && WEB_PORT="$(free_port "$((API_PORT + 1))")"
 envset API_PORT "$API_PORT"
 envset WEB_PORT "$WEB_PORT"

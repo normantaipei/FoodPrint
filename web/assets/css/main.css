@@ -1,3 +1,4 @@
+/* FoodPrint 美食地圖前端 — 樣式（含手機版）。純 CSS。 */
 :root {
   --bg: #faf7f2;
   --panel: #ffffff;
@@ -41,12 +42,12 @@ body {
 .stats { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .stats b { color: var(--ink); font-weight: 600; }
 .search-wrap { flex: 1; display: flex; justify-content: flex-end; }
-#kw {
+.search-wrap input {
   width: min(360px, 100%);
   padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px;
   font-size: 14px; background: #fbfbfb; outline: none;
 }
-#kw:focus { border-color: var(--accent); }
+.search-wrap input:focus { border-color: var(--accent); }
 .icon-btn {
   border: 1px solid var(--line); background: var(--panel); cursor: pointer;
   width: 38px; height: 38px; border-radius: 10px; font-size: 18px; line-height: 1;

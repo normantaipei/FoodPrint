@@ -1,0 +1,9 @@
+# Nuxt
+.nuxt
+.output
+.data
+dist
+node_modules
+
+# 本機環境設定（含後端 domain 與 token，絕不進版控）
+.env

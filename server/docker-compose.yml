@@ -69,24 +69,23 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
 
-  # 地圖前端（靜態 SPA + nginx 唯讀反向代理；見 ../web/）。
-  # nginx 把 /api/{stats,search,nearby,thumbs} 代理到 api 並注入讀取 token，
-  # 所以瀏覽器端免持 token、免設 CORS。寫入端點不經此代理。
+  # 地圖前端（Nuxt 3 SSR；見 ../web/）。
+  # Nuxt 的 server route（/api/*）把 /stats、/search、/nearby、縮圖代理到 api 並在
+  # server 端注入讀取 token，所以瀏覽器端免持 token、同源免設 CORS。寫入端點不經此代理。
   web:
-    image: nginx:1.27-alpine
+    build:
+      context: ../web
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       - api
     environment:
-      # 注入給 nginx 代理的讀取 token（由 install.sh 從 .env 推導寫入）。
-      FOODPRINT_PROXY_TOKEN: ${FOODPRINT_PROXY_TOKEN:-}
-      # 只讓 envsubst 替換我們的變數，保留 nginx 內建 $uri/$host/$args/$1 等。
-      NGINX_ENVSUBST_FILTER: "FOODPRINT_PROXY_TOKEN"
-    volumes:
-      - ../web/public:/usr/share/nginx/html:ro
-      - ../web/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      # 後端 domain：compose 內網直接打服務名 api:8000（容器內的 localhost 是容器自己）。
+      NUXT_FOODPRINT_BASE_URL: http://api:8000
+      # 『讀取』token（由 install.sh 從 .env 推導寫入 FOODPRINT_PROXY_TOKEN）；只在 server 端用。
+      NUXT_FOODPRINT_TOKEN: ${FOODPRINT_PROXY_TOKEN:-}
     ports:
-      - "${WEB_PORT:-8080}:80"
+      - "${WEB_PORT:-8080}:3000"
 
 volumes:
   pgdata:
