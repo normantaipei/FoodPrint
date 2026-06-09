@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>FoodPrint — 美食口袋地圖</title>
+
+  <!-- Leaflet（OSM 圖磚，免 API key）-->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <button id="menu-toggle" class="icon-btn" title="篩選 / 清單" aria-label="開關側欄">☰</button>
+      <h1>🍜 FoodPrint</h1>
+      <div id="stats" class="stats"></div>
+      <div class="search-wrap">
+        <input id="kw" type="search" placeholder="搜尋店名 / 地址 / 標籤…" autocomplete="off" />
+      </div>
+      <button id="locate" class="icon-btn" title="找我附近" aria-label="找我附近">📍</button>
+    </header>
+
+    <aside id="sidebar">
+      <div class="filters">
+        <div class="filter-row status-row">
+          <label class="seg"><input type="radio" name="status" value="" checked /><span>全部</span></label>
+          <label class="seg"><input type="radio" name="status" value="want" /><span>想去</span></label>
+          <label class="seg"><input type="radio" name="status" value="visited" /><span>吃過</span></label>
+        </div>
+        <div class="filter-row">
+          <label class="check"><input type="checkbox" id="fav-only" /> 只看 ★ 最愛</label>
+        </div>
+        <div id="tag-filters"></div>
+      </div>
+      <div class="list-head"><span id="list-count"></span><button id="clear-filters" class="link-btn">清除篩選</button></div>
+      <ul id="list"></ul>
+    </aside>
+
+    <main id="map"></main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

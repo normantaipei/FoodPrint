@@ -1,0 +1,147 @@
+:root {
+  --bg: #faf7f2;
+  --panel: #ffffff;
+  --ink: #2c2620;
+  --muted: #8a8079;
+  --line: #ece5dc;
+  --want: #e8943a;   /* 想去：暖橘 */
+  --visited: #3f9d6b;/* 吃過：綠 */
+  --fav: #f2c200;    /* 最愛：金 */
+  --accent: #c1471d;
+  --shadow: 0 2px 10px rgba(0,0,0,.08);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  color: var(--ink); background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  grid-template-rows: 56px 1fr;
+  grid-template-areas: "top top" "side map";
+  height: 100vh;
+}
+
+/* ── 頂列 ───────────────────────────────────────── */
+#topbar {
+  grid-area: top;
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  z-index: 1100;
+}
+#topbar h1 { font-size: 18px; margin: 0; white-space: nowrap; letter-spacing: .5px; }
+.stats { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.stats b { color: var(--ink); font-weight: 600; }
+.search-wrap { flex: 1; display: flex; justify-content: flex-end; }
+#kw {
+  width: min(360px, 100%);
+  padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 14px; background: #fbfbfb; outline: none;
+}
+#kw:focus { border-color: var(--accent); }
+.icon-btn {
+  border: 1px solid var(--line); background: var(--panel); cursor: pointer;
+  width: 38px; height: 38px; border-radius: 10px; font-size: 18px; line-height: 1;
+  display: grid; place-items: center;
+}
+.icon-btn:hover { background: #f4efe8; }
+#menu-toggle { display: none; }
+
+/* ── 側欄 ───────────────────────────────────────── */
+#sidebar {
+  grid-area: side;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.filters { padding: 12px 14px; border-bottom: 1px solid var(--line); overflow-y: auto; max-height: 46%; }
+.filter-row { margin-bottom: 10px; }
+.status-row { display: flex; gap: 6px; }
+.seg { flex: 1; position: relative; }
+.seg input { position: absolute; opacity: 0; }
+.seg span {
+  display: block; text-align: center; padding: 7px 0; font-size: 13px;
+  border: 1px solid var(--line); border-radius: 8px; cursor: pointer; color: var(--muted);
+}
+.seg input:checked + span { background: var(--accent); color: #fff; border-color: var(--accent); }
+.check { font-size: 13px; color: var(--ink); cursor: pointer; user-select: none; }
+
+.tag-dim { margin-top: 10px; }
+.tag-dim h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-size: 12px; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: #fbfbfb; color: var(--ink); white-space: nowrap;
+}
+.chip.on { background: #fbe9d6; border-color: var(--want); color: var(--accent); font-weight: 600; }
+
+.list-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; font-size: 12px; color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.link-btn { border: none; background: none; color: var(--accent); cursor: pointer; font-size: 12px; }
+
+#list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.item { padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; display: flex; gap: 10px; }
+.item:hover { background: #f7f2eb; }
+.item .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex: none; }
+.item .dot.want { background: var(--want); }
+.item .dot.visited { background: var(--visited); }
+.item .body { min-width: 0; }
+.item .name { font-size: 14px; font-weight: 600; }
+.item .meta { font-size: 12px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty { padding: 24px 14px; color: var(--muted); font-size: 13px; text-align: center; }
+
+/* ── 地圖 ───────────────────────────────────────── */
+#map { grid-area: map; height: 100%; }
+
+/* pin */
+.pin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); position: relative; }
+.pin.want { background: var(--want); }
+.pin.visited { background: var(--visited); }
+.pin .fav { position: absolute; top: -11px; right: -7px; color: var(--fav); font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+
+/* 卡片 popup */
+.leaflet-popup-content { margin: 0; width: 250px !important; }
+.card { font-size: 13px; }
+.card .thumb { width: 100%; height: 130px; object-fit: cover; display: block; border-radius: 8px 8px 0 0; background: #eee; }
+.card .pad { padding: 10px 12px 12px; }
+.card .title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+.card .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+.badge.want { background: #fbe9d6; color: var(--accent); }
+.badge.visited { background: #dff0e6; color: var(--visited); }
+.badge.rating { background: #fff5d6; color: #9a7b00; }
+.badge.price { background: #eee; color: #555; }
+.card .desc { color: #5a534c; margin: 6px 0; line-height: 1.5; }
+.card .addr { color: var(--muted); font-size: 12px; margin: 4px 0; }
+.card .tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.card .tags span { font-size: 11px; color: var(--muted); background: #f4efe8; padding: 2px 7px; border-radius: 999px; }
+.card .links { display: flex; gap: 10px; margin-top: 8px; }
+.card .links a { color: var(--accent); text-decoration: none; font-size: 12px; font-weight: 600; }
+.dist { color: var(--muted); font-size: 12px; }
+
+/* ── 手機 ───────────────────────────────────────── */
+@media (max-width: 760px) {
+  #app { grid-template-columns: 1fr; grid-template-areas: "top" "map"; }
+  #menu-toggle { display: grid; }
+  #topbar h1 { font-size: 16px; }
+  .stats { display: none; }
+  #sidebar {
+    position: fixed; top: 56px; left: 0; bottom: 0; width: 86%; max-width: 340px;
+    transform: translateX(-105%); transition: transform .22s ease; z-index: 1200;
+    box-shadow: var(--shadow);
+  }
+  #sidebar.open { transform: translateX(0); }
+  .filters { max-height: 50%; }
+}

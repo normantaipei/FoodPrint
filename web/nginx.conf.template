@@ -1,0 +1,41 @@
+# FoodPrint 地圖前端 — nginx 設定（由官方 nginx 映像的 envsubst 套用）。
+#
+# 只代理「唯讀查詢端點」(GET) 到 api 服務，並在 server 端注入讀取 token：
+#   - 瀏覽器端不持有 token，也沒有跨源（CORS）問題。
+#   - 寫入端點（POST/PUT/DELETE /places、/images 原圖）一律不經此代理，
+#     仍只能在區網內、帶讀寫 token 直接打 api，避免從地圖頁被濫用。
+#
+# ${FOODPRINT_PROXY_TOKEN} 由 compose 注入；NGINX_ENVSUBST_FILTER 限定只替換這個變數，
+# 其餘 $uri/$host/$args/$1 等 nginx 內建變數原樣保留。
+
+server {
+    listen       80;
+    server_name  _;
+
+    root   /usr/share/nginx/html;
+    index  index.html;
+
+    # 靜態檔（SPA）
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 唯讀 API 代理：/api/{stats,search,nearby,thumbs/...}
+    location ~ ^/api/(stats|search|nearby|thumbs/.+)$ {
+        limit_except GET { deny all; }
+
+        # proxy_pass 帶變數（$1）時 nginx 會在「請求時」解析 upstream 主機名，
+        # 需指定 resolver。Docker 內建 DNS 在 127.0.0.11。
+        resolver           127.0.0.11 valid=30s ipv6=off;
+        set                $api_upstream api:8000;
+        proxy_pass         http://$api_upstream/$1$is_args$args;
+        proxy_set_header   Authorization "Bearer ${FOODPRINT_PROXY_TOKEN}";
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Forwarded-For $remote_addr;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout    30s;
+    }
+
+    # 其他 /api/* 一律擋掉（不讓寫入端點經由前端外露）
+    location /api/ { return 404; }
+}
