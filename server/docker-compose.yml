@@ -49,10 +49,16 @@ services:
       FOODPRINT_READ_TOKEN: ${FOODPRINT_READ_TOKEN:-}
       FOODPRINT_CORS_ORIGINS: ${FOODPRINT_CORS_ORIGINS:-*}
       FOODPRINT_DATA: /data
+      # /skill 即時打包用的 repo 根（下方以唯讀掛入）。
+      FOODPRINT_REPO: /repo
+      # /skill 下載額外放行的來源網段（VPN 等），逗號分隔 CIDR；預設只放私網 + loopback。
+      FOODPRINT_SKILL_ALLOW_CIDRS: ${FOODPRINT_SKILL_ALLOW_CIDRS:-}
     volumes:
       - media:/data
       # taxonomy.yaml 掛進 /app（seed / 判定 active 用）。
       - ../taxonomy.yaml:/app/taxonomy.yaml:ro
+      # repo 根唯讀掛入：供 GET /skill 即時打包（SKILL.md / scripts）。
+      - ../:/repo:ro
     ports:
       - "${API_PORT:-8000}:8000"
 
@@ -67,15 +73,11 @@ services:
     environment:
       # 注入給 nginx 代理的讀取 token（由 install.sh 從 .env 推導寫入）。
       FOODPRINT_PROXY_TOKEN: ${FOODPRINT_PROXY_TOKEN:-}
-      # skill 下載的門票 token（= 讀寫 token；由 install.sh 寫入）。
-      FOODPRINT_SKILL_TOKEN: ${FOODPRINT_SKILL_TOKEN:-}
-      # 只讓 envsubst 替換我們的 FOODPRINT_* 變數，保留 nginx 內建 $uri/$host/$args/$1 等。
-      NGINX_ENVSUBST_FILTER: "FOODPRINT_"
+      # 只讓 envsubst 替換我們的變數，保留 nginx 內建 $uri/$host/$args/$1 等。
+      NGINX_ENVSUBST_FILTER: "FOODPRINT_PROXY_TOKEN"
     volumes:
       - ../web/public:/usr/share/nginx/html:ro
       - ../web/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
-      # 烤好的 skill zip（install.sh 產到 ../dist）放出來給下載。
-      - ../dist:/usr/share/nginx/dist:ro
     ports:
       - "${WEB_PORT:-8080}:80"
 

@@ -48,10 +48,14 @@ curl -fsSL https://raw.githubusercontent.com/normantaipei/FoodPrint/main/install
 bash install.sh
 ```
 
-跑完會印出：地圖網址（含區網 IP）、API 位址、兩組 token，以及一個 **skill 下載網址**——
-腳本會把「後端位址 + 讀寫 token」烤進 `dist/foodprint-skill.zip`，並由前端那個埠提供下載
-（用讀寫 token 當門票 `?t=…`，純看地圖的人拿不到）。下載後上傳到 Claude Desktop
-（設定 → Skills → Upload skill）即「已連線」，免再手動 set；或在本機 `ln -s` 給 Claude Code 用。
+跑完會印出：地圖網址（含區網 IP）、API 位址、兩組 token，以及一個 **skill 下載網址**。
+後端有個 **`GET /skill`** 端點（**僅限區網、免 token**）：區網內任一台機器 / 手機開
+`http://<後端IP>:<API_PORT>/skill` 就會即時打包並下載 `foodprint-skill.zip`，且把「這台後端的
+位址 + 讀寫 token」即時烤進去。下載後上傳到 Claude Desktop（設定 → Skills → Upload skill）
+即「已連線」，免再手動 set；或在本機 `ln -s` 給 Claude Code 用。
+
+- 想給只搜尋、不入庫的人：`http://<後端IP>:<API_PORT>/skill?token=ro`（烤唯讀 token）。
+- `/skill` 看真實對端 IP 限區網；要放行 VPN 等網段用 `FOODPRINT_SKILL_ALLOW_CIDRS`。
 
 > 入庫 / 刪除是區網限定（`require_lan`），要在區網內的 Claude Code 跑；查詢（找店 / 附近）不限。
 

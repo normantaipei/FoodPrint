@@ -20,16 +20,6 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # skill 下載：把烤好連線設定的 foodprint-skill.zip 放出來給你下載。
-    # 用讀寫 token 當門票（?t=<讀寫token>）——因為 zip 內含讀寫 token，只開給知道它的人，
-    # 純看地圖的人（只有唯讀 token / 沒 token）拿不到。
-    location = /skill/foodprint-skill.zip {
-        if ($arg_t != "${FOODPRINT_SKILL_TOKEN}") { return 403; }
-        alias /usr/share/nginx/dist/foodprint-skill.zip;
-        default_type application/zip;
-        add_header Content-Disposition 'attachment; filename="foodprint-skill.zip"';
-    }
-
     # 唯讀 API 代理：/api/{stats,search,nearby,thumbs/...}
     location ~ ^/api/(stats|search|nearby|thumbs/.+)$ {
         limit_except GET { deny all; }

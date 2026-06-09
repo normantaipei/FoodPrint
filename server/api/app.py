@@ -5,6 +5,7 @@
 端點
 ────
   GET  /health                       健康檢查（免 token）
+  GET  /skill                        下載打包好的 skill zip（**僅限區網**，免 token；連線設定即時烤入）
   GET  /stats                        庫狀態（places / tags 數）
   POST /places     (multipart)       收「一間店家 + metadata（+選配照片）」入庫（place_key 去重）
   PUT  /places/{id}/tags  (json)     改一間店的 tags（整批替換 / 只新增 / 只移除）
@@ -27,12 +28,13 @@ import ipaddress
 import json
 import math
 import os
+import zipfile
 from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
@@ -47,6 +49,17 @@ THUMB_MAX = 1280
 RW_TOKEN = os.environ.get("FOODPRINT_TOKEN", "").strip()
 RO_TOKEN = os.environ.get("FOODPRINT_READ_TOKEN", "").strip()
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".heic", ".tiff"}
+
+# repo 根（含 SKILL.md / scripts），給 /skill 即時打包用。
+# 容器內由 compose 以 ../:/repo:ro 掛進來（FOODPRINT_REPO=/repo）；本機跑時退回 app.py 上溯的根。
+def _default_repo_dir() -> Path:
+    parents = Path(__file__).resolve().parents
+    return parents[2] if len(parents) > 2 else Path("/repo")
+
+
+REPO_DIR = Path(os.environ["FOODPRINT_REPO"]) if os.environ.get("FOODPRINT_REPO") else _default_repo_dir()
+# 跟 scripts/build_skill_zip.sh 同一份清單；改一邊要同步另一邊。
+SKILL_FILES = ["SKILL.md", "taxonomy.yaml", "scripts/backend.py", "scripts/fetch_place.py"]
 
 app = FastAPI(title="FoodPrint 私有 DB", version="1.0")
 
@@ -129,11 +142,24 @@ def _peer_ip(request: Request):
     return getattr(ip, "ipv4_mapped", None) or ip
 
 
+# 額外放行的來源網段（VPN 子網之類），逗號分隔 CIDR；預設只放私有網段 + loopback。
+_extra_cidrs = []
+for _c in os.environ.get("FOODPRINT_SKILL_ALLOW_CIDRS", "").split(","):
+    _c = _c.strip()
+    if _c:
+        try:
+            _extra_cidrs.append(ipaddress.ip_network(_c, strict=False))
+        except ValueError:
+            pass
+
+
 def require_lan(request: Request) -> None:
     ip = _peer_ip(request)
     if ip is None:
         raise HTTPException(status_code=403, detail="無法判定來源位址")
     if ip.is_private or ip.is_loopback or ip.is_link_local:
+        return
+    if any(ip in net for net in _extra_cidrs):
         return
     raise HTTPException(status_code=403, detail="這個端點僅限區網內存取")
 
@@ -170,6 +196,45 @@ def _media_url(rel: str | None) -> str | None:
 @app.get("/health")
 def health() -> dict:
     return {"ok": True, "service": "foodprint-private-db"}
+
+
+@app.get("/skill")
+def download_skill(
+    request: Request,
+    token: str = "rw",                       # rw（讀寫，預設）/ ro（唯讀）/ none（不烤 token）
+    _: None = Depends(require_lan),          # ← 僅限區網（無需 token；區網就是門票）
+) -> Response:
+    """即時打包並下載 skill zip（**限區網**）。
+
+    連線設定即時烤進 zip 內的 `data/config.json`，下載解開即「私有 DB 已連線」：
+      base_url = 你存取本服務所用的網址（從這個請求推得）；token 由 ?token= 決定。
+      ?token=rw（預設，自己入庫用）/ ro（只給人搜尋）/ none（不烤 token）。
+    """
+    missing = [f for f in SKILL_FILES if not (REPO_DIR / f).is_file()]
+    if missing:
+        raise HTTPException(
+            status_code=500,
+            detail=f"server 端找不到 repo 檔（需把 repo 掛進 {REPO_DIR}）：{', '.join(missing)}",
+        )
+
+    tok = {"rw": RW_TOKEN, "ro": RO_TOKEN, "none": ""}.get(token)
+    if tok is None:
+        raise HTTPException(status_code=400, detail="token 只能是 rw / ro / none")
+    config = {
+        "backend": "selfhost",
+        "selfhost": {"base_url": str(request.base_url).rstrip("/"), "token": tok},
+    }
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("data/config.json", json.dumps(config, ensure_ascii=False, indent=2))
+        for rel in SKILL_FILES:
+            z.write(REPO_DIR / rel, rel)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="foodprint-skill.zip"'},
+    )
 
 
 @app.get("/stats")
