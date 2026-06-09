@@ -166,17 +166,34 @@ gen_token() { python3 -c "import secrets; print(secrets.token_hex(32))"; }
 
 # ── 找空埠：preferred 起跳，被占用就往後找；但若該埠已是我們自己的 compose
 #    服務在用，就沿用、不換（重跑時不亂跳）。───────────────────────────
-free_port() {  # $1 = 起始埠 → 印出第一個可綁定的埠
+free_port() {  # $1 = 起始埠 → 印出第一個「真的沒人用」的埠
   python3 - "$1" <<'PY'
 import socket, sys
 start = int(sys.argv[1])
-for port in range(start, start + 300):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    try:
-        s.bind(("0.0.0.0", port)); s.close(); print(port); break
-    except OSError:
+
+def in_use(port):
+    # 1) 不用 SO_REUSEADDR：別人若已綁這埠（含只綁 127.0.0.1 且開了
+    #    SO_REUSEADDR 的服務），這個 bind 會直接 EADDRINUSE，不會誤判成空。
+    for host in ("0.0.0.0", "127.0.0.1"):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind((host, port))
+        except OSError:
+            s.close(); return True
         s.close()
+    # 2) 再保險：有沒有人正在 listen（擋掉 SO_REUSEPORT 之類的邊角情況）。
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(0.2)
+    try:
+        if s.connect_ex(("127.0.0.1", port)) == 0:
+            return True
+    finally:
+        s.close()
+    return False
+
+for port in range(start, start + 300):
+    if not in_use(port):
+        print(port); break
 else:
     sys.exit("找不到可用的埠")
 PY
