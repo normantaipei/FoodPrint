@@ -30,6 +30,7 @@
     selectedTags: {},      // category -> Set(name)
     status: "",            // "" | want | visited
     favOnly: false,
+    priceLevels: new Set(),// 選中的價位 1..4（多選＝OR）；空＝不限
     keyword: ""
   };
 
@@ -116,6 +117,7 @@
   function passesFilters(p) {
     if (STATE.status && p.status !== STATE.status) return false;
     if (STATE.favOnly && !p.favorite) return false;
+    if (STATE.priceLevels.size && !STATE.priceLevels.has(p.price_level)) return false;
 
     if (STATE.keyword) {
       var hay = (p.name + " " + (p.address || "") + " " + (p.description || "") + " " +
@@ -264,13 +266,23 @@
       r.addEventListener("change", function () { STATE.status = r.value; render(); });
     });
     el("fav-only").addEventListener("change", function (e) { STATE.favOnly = e.target.checked; render(); });
+    el("price-filter").querySelectorAll(".chip").forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        var lv = +chip.dataset.price;
+        if (STATE.priceLevels.has(lv)) { STATE.priceLevels.delete(lv); chip.classList.remove("on"); }
+        else { STATE.priceLevels.add(lv); chip.classList.add("on"); }
+        render();
+      });
+    });
     el("locate").addEventListener("click", locateMe);
     el("menu-toggle").addEventListener("click", function () { el("sidebar").classList.toggle("open"); });
     el("clear-filters").addEventListener("click", function () {
       STATE.selectedTags = {}; STATE.status = ""; STATE.favOnly = false; STATE.keyword = "";
+      STATE.priceLevels.clear();
       el("kw").value = ""; el("fav-only").checked = false;
       document.querySelector('input[name="status"][value=""]').checked = true;
       el("tag-filters").querySelectorAll(".chip.on").forEach(function (c) { c.classList.remove("on"); });
+      el("price-filter").querySelectorAll(".chip.on").forEach(function (c) { c.classList.remove("on"); });
       STATE.places.forEach(function (p) { delete p.distance_km; });
       render();
     });

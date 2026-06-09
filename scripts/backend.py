@@ -381,6 +381,10 @@ def cmd_search(args) -> None:
         params.append(("tag", kv))
     if args.status:
         params.append(("status", args.status))
+    if args.price_min is not None:
+        params.append(("price_min", str(args.price_min)))
+    if args.price_max is not None:
+        params.append(("price_max", str(args.price_max)))
     params.append(("limit", str(args.limit)))
     results = _get_json(sh, "/search", params)
     if args.json:
@@ -397,6 +401,10 @@ def cmd_nearby(args) -> None:
         params.append(("tag", kv))
     if args.status:
         params.append(("status", args.status))
+    if args.price_min is not None:
+        params.append(("price_min", str(args.price_min)))
+    if args.price_max is not None:
+        params.append(("price_max", str(args.price_max)))
     results = _get_json(sh, "/nearby", params)
     if args.json:
         print(json.dumps(results, ensure_ascii=False, indent=2)); return
@@ -439,6 +447,8 @@ def main() -> None:
     psr.add_argument("query", nargs="?", default="")
     psr.add_argument("--tag", action="append", help="category=name，可重複（AND）")
     psr.add_argument("--status", choices=["want", "visited"])
+    psr.add_argument("--price-min", type=int, choices=[1, 2, 3, 4], help="價位下限 1..4（$~$$$$）")
+    psr.add_argument("--price-max", type=int, choices=[1, 2, 3, 4], help="價位上限 1..4（$~$$$$）")
     psr.add_argument("--limit", type=int, default=20)
     psr.add_argument("--json", action="store_true")
     psr.add_argument("--table", action="store_true", help="印 Markdown 表")
@@ -450,6 +460,8 @@ def main() -> None:
     pn.add_argument("--radius", type=float, default=3.0, help="半徑 km（預設 3）")
     pn.add_argument("--tag", action="append", help="category=name，可重複（AND）")
     pn.add_argument("--status", choices=["want", "visited"])
+    pn.add_argument("--price-min", type=int, choices=[1, 2, 3, 4], help="價位下限 1..4（$~$$$$）")
+    pn.add_argument("--price-max", type=int, choices=[1, 2, 3, 4], help="價位上限 1..4（$~$$$$）")
     pn.add_argument("--limit", type=int, default=30)
     pn.add_argument("--json", action="store_true")
     pn.add_argument("--table", action="store_true")

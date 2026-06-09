@@ -102,7 +102,8 @@ ln -s "$(pwd)" ~/.claude/skills/foodprint     # 或直接複製整個資料夾
 4. **找店**：
    ```bash
    python3 scripts/backend.py search "火鍋 約會" --tag district=大安區 --table
-   python3 scripts/backend.py nearby --lat 25.033 --lng 121.564 --radius 1.5 --table
+   python3 scripts/backend.py search --tag occasion=約會 --price-min 3 --table   # 價位區間（1..4，$~$$$$）
+   python3 scripts/backend.py nearby --lat 25.033 --lng 121.564 --radius 1.5 --price-max 2 --table
    ```
 
 ---
@@ -120,7 +121,7 @@ ln -s "$(pwd)" ~/.claude/skills/foodprint     # 或直接複製整個資料夾
 ## 路線圖
 
 - [x] Skill ＋ scripts ＋ 自架 Postgres 後端（含 `/nearby` 地理查詢）
-- [x] **web 地圖前端**：Leaflet（OSM）靜態 SPA，把口袋名單釘在地圖上、可依狀態 / 標籤篩選、
+- [x] **web 地圖前端**：Leaflet（OSM）靜態 SPA，把口袋名單釘在地圖上、可依狀態 / 標籤 / 價位篩選、
   點 pin 看卡片（縮圖 + 心得 + 標籤 + Google Maps）、「找我附近」。一鍵 `install.sh` 部署
 - [ ] 想去 → 吃過的一鍵轉換與到訪紀錄
 - [ ] 口味畫像：從累積的店家學你的偏好，主動推薦

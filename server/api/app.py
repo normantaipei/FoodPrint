@@ -11,8 +11,8 @@
   PUT  /places/{id}/tags  (json)     改一間店的 tags（整批替換 / 只新增 / 只移除）
   GET  /places/{id}                  取一間店摘要（刪除前 dry-run 確認用）
   DELETE /places/{id}                刪一間店（連帶清 tags + 磁碟照片；需讀寫 token）
-  GET  /search?q=&tag=&status=&limit=  tag + 關鍵字粗篩候選（語意排序交給 Claude）
-  GET  /nearby?lat=&lng=&radius_km=    地理查詢：回傳座標附近的店（含距離），由近到遠
+  GET  /search?q=&tag=&status=&price_min=&price_max=&limit=  tag/關鍵字/價位區間粗篩（語意排序交給 Claude）
+  GET  /nearby?lat=&lng=&radius_km=&price_min=&price_max=    地理查詢：回傳座標附近的店（含距離），由近到遠
   GET  /thumbs/{name}                取店家照片縮圖（讀取 token 即可）
   GET  /images/{name}                取原圖（需讀寫 token）
 
@@ -386,13 +386,29 @@ _PLACE_COLS = ("p.id, p.name, p.address, p.lat, p.lng, p.description, p.status, 
                "p.price_level, p.rating, p.favorite, p.source, p.image_path, p.thumbnail_path")
 
 
+def _price_clauses(price_min: int | None, price_max: int | None) -> tuple[list[str], list]:
+    """價格區間（price_level 1..4，$~$$$$）篩選。給了界限就夾到 1..4；
+    任一界限存在時，price_level 為 NULL 的店自然落選（NULL 比較為 false）。"""
+    clauses: list[str] = []
+    params: list = []
+    if price_min is not None:
+        clauses.append("p.price_level >= %s")
+        params.append(max(1, min(4, price_min)))
+    if price_max is not None:
+        clauses.append("p.price_level <= %s")
+        params.append(max(1, min(4, price_max)))
+    return clauses, params
+
+
 @app.get("/search")
 @limiter.limit(SEARCH_RATE)
 def search(request: Request, q: str = "", tag: list[str] | None = None,
-           status: str | None = None, limit: int = 20, offset: int = 0,
+           status: str | None = None, price_min: int | None = None, price_max: int | None = None,
+           limit: int = 20, offset: int = 0,
            _: None = Depends(require_read)) -> JSONResponse:
     """tag（category=name，可多個 AND）+ 關鍵字（對 店名/地址/描述/tag AND LIKE）粗篩候選。
-    status 可選 want / visited 篩選。語意排序由 Claude 讀描述完成。"""
+    status 可選 want / visited 篩選；price_min/price_max 限定價位區間（1..4，$~$$$$）。
+    語意排序由 Claude 讀描述完成。"""
     limit = max(1, min(limit, 100))
     offset = max(0, offset)
     tag = tag or []
@@ -403,6 +419,9 @@ def search(request: Request, q: str = "", tag: list[str] | None = None,
     if status in ("want", "visited"):
         clauses.append("p.status = %s")
         params.append(status)
+    pc, pp = _price_clauses(price_min, price_max)
+    clauses += pc
+    params += pp
     if tag_pairs:
         ors = " OR ".join(["(t.category=%s AND t.name=%s)"] * len(tag_pairs))
         sub_params = [x for pair in tag_pairs for x in pair]
@@ -438,7 +457,8 @@ def search(request: Request, q: str = "", tag: list[str] | None = None,
 @app.get("/nearby")
 @limiter.limit(SEARCH_RATE)
 def nearby(request: Request, lat: float, lng: float, radius_km: float = 3.0,
-           tag: list[str] | None = None, status: str | None = None, limit: int = 30,
+           tag: list[str] | None = None, status: str | None = None,
+           price_min: int | None = None, price_max: int | None = None, limit: int = 30,
            _: None = Depends(require_read)) -> JSONResponse:
     """地理查詢：回傳 (lat,lng) 半徑 radius_km 內的店，由近到遠，每筆帶 distance_km。
     先用經緯度 bounding box 粗篩（吃 lat/lng 索引），再用 haversine 精算距離 + 排序。"""
@@ -457,6 +477,9 @@ def nearby(request: Request, lat: float, lng: float, radius_km: float = 3.0,
     if status in ("want", "visited"):
         clauses.append("p.status = %s")
         params.append(status)
+    pc, pp = _price_clauses(price_min, price_max)
+    clauses += pc
+    params += pp
     if tag_pairs:
         ors = " OR ".join(["(t.category=%s AND t.name=%s)"] * len(tag_pairs))
         sub_params = [x for pair in tag_pairs for x in pair]

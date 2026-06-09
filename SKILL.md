@@ -123,9 +123,15 @@ python3 scripts/backend.py ingest --manifest /tmp/foodprint/_ingest.json
   ```bash
   python3 scripts/backend.py search "火鍋 約會" --tag district=大安區 --status visited --table
   ```
-- **找附近**（給座標，由近到遠，每筆帶距離）：
+- **價位區間**：用 `--price-min` / `--price-max`（1..4，$~$$$$）夾出價位範圍，可單獨或搭配
+  關鍵字/標籤一起用。例：「找便宜一點的」→ `--price-max 2`；「找高檔約會餐廳」→ `--price-min 3`。
   ```bash
-  python3 scripts/backend.py nearby --lat 25.033 --lng 121.564 --radius 1.5 --tag cuisine=咖啡廳 --table
+  python3 scripts/backend.py search --tag occasion=約會 --price-min 3 --table
+  ```
+  > 注意：一旦給了價位界限，**沒填 price_level 的店會落選**——入庫時盡量補上價位。
+- **找附近**（給座標，由近到遠，每筆帶距離；同樣吃 `--price-min` / `--price-max`）：
+  ```bash
+  python3 scripts/backend.py nearby --lat 25.033 --lng 121.564 --radius 1.5 --tag cuisine=咖啡廳 --price-max 2 --table
   ```
   使用者說「我現在在 X 附近」時，先把地點換成座標（用 `fetch_place.py` 解析他給的 Maps 連結，
   或請他給座標），再 `nearby`。
