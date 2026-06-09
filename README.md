@@ -25,6 +25,30 @@
    - [scripts/backend.py](scripts/backend.py)：私有 DB 客戶端（`status` / `set` / `place` / `ingest` / `search` / `nearby` / `delete`）。
    - [scripts/fetch_place.py](scripts/fetch_place.py)：從 Google Maps / 社群連結擷取店名/地址/座標（免 API key）。
 3. **server/**（自架）：[FastAPI + PostgreSQL](server/README.md)，`docker compose up` 即可。
+4. **web/**（地圖前端）：[靜態 SPA + Leaflet](web/README.md)（OSM 圖磚，免 API key），
+   由 nginx 反向代理唯讀端點並注入讀取 token——瀏覽器端免持 token、免設 CORS。
+
+---
+
+## 一鍵安裝整套系統
+
+一條命令把**後端（FastAPI + PostgreSQL）＋ 地圖前端**全部建起來並部署。
+腳本會自動產生隨機密碼與 token、**自動避開已被占用的埠**、啟動容器、等健康檢查通過，
+再把 Claude 端的 backend client 指向本機：
+
+```bash
+bash install.sh
+```
+
+跑完會印出地圖網址（含區網 IP，手機 / 其他電腦也能開）、API 位址與兩組 token。
+重跑 = 升級（沿用既有秘密與埠，不會亂跳）。其他：
+
+```bash
+bash install.sh --logs    # 看即時 log
+bash install.sh --down    # 停止整套（資料保留在 volume）
+```
+
+> 需求：一台跑得動 Docker 的機器。秘密與實際使用的埠都寫在 `server/.env`（不進版控）。
 
 ---
 
@@ -78,7 +102,8 @@ ln -s "$(pwd)" ~/.claude/skills/foodprint     # 或直接複製整個資料夾
 ## 路線圖
 
 - [x] Skill ＋ scripts ＋ 自架 Postgres 後端（含 `/nearby` 地理查詢）
-- [ ] **web 地圖前端**：Nuxt + Leaflet/MapLibre，把口袋名單釘在地圖上、可篩選、點 pin 看卡片
+- [x] **web 地圖前端**：Leaflet（OSM）靜態 SPA，把口袋名單釘在地圖上、可依狀態 / 標籤篩選、
+  點 pin 看卡片（縮圖 + 心得 + 標籤 + Google Maps）、「找我附近」。一鍵 `install.sh` 部署
 - [ ] 想去 → 吃過的一鍵轉換與到訪紀錄
 - [ ] 口味畫像：從累積的店家學你的偏好，主動推薦
 

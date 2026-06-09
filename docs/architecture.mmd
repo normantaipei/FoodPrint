@@ -16,6 +16,11 @@ flowchart LR
         API["FastAPI\n/places /search /nearby ..."]
         PG[("PostgreSQL\nplaces + tags\n(lat/lng 地理欄位)")]
         MEDIA[["media volume\n照片原圖 + 縮圖"]]
+        WEB["nginx 地圖前端\n靜態 SPA + 唯讀代理\n(注入讀取 token)"]
+    end
+
+    subgraph browser["瀏覽器 (手機 / 電腦)"]
+        MAP["Leaflet 地圖\n釘 pin / 篩選 / 找附近"]
     end
 
     U1 --> F
@@ -31,3 +36,6 @@ flowchart LR
     B -.->|"search / nearby (讀取 token)"| API
     API -.->|"粗篩候選"| B
     B -.->|"Claude 語意挑選後回給使用者"| C
+
+    MAP -->|"GET /api/* (同源)"| WEB
+    WEB -.->|"唯讀 search / nearby / thumbs"| API
