@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 美食口袋地圖主頁：頂列搜尋 + 側欄篩選/清單 + Leaflet 地圖。
 // 資料走 Nuxt 代理（/api/*，token 不外洩）；地圖在瀏覽器端（onMounted）初始化。
-import { cardHtml, DIM_LABELS, type Place } from '~/utils/place'
+import { cardHtml, cuisineText, priceText, DIM_LABELS, type Place } from '~/utils/place'
 import { loadLeaflet } from '~/utils/leaflet'
 
 const {
@@ -248,19 +248,11 @@ onBeforeUnmount(() => {
           <span class="dot" :class="p.status === 'visited' ? 'visited' : 'want'" />
           <div class="body">
             <div class="name">{{ p.favorite ? '★ ' : '' }}{{ p.name }}</div>
-            <div class="meta">
-              {{
-                [
-                  p.address,
-                  (p.tags || [])
-                    .slice(0, 3)
-                    .map((t) => t.split(':').slice(1).join(':'))
-                    .join(' · '),
-                ]
-                  .filter(Boolean)
-                  .join(' — ') || '無地址'
-              }}
+            <div v-if="cuisineText(p) || priceText(p)" class="tagline">
+              <span v-if="cuisineText(p)" class="cuisine">{{ cuisineText(p) }}</span>
+              <span v-if="priceText(p)" class="price">{{ priceText(p) }}</span>
             </div>
+            <div class="meta">{{ p.address || '無地址' }}</div>
           </div>
         </li>
       </ul>

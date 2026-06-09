@@ -42,6 +42,24 @@ export function parseTag(t: string): [string, string] {
   return i < 0 ? ['', t] : [t.slice(0, i), t.slice(i + 1)]
 }
 
+// 取某維度（category）下的所有 tag 名稱，例如菜系（cuisine）。
+export function tagNames(p: Place, cat: string): string[] {
+  return (p.tags || [])
+    .map(parseTag)
+    .filter(([c]) => c === cat)
+    .map(([, n]) => n)
+}
+
+// 這間店的菜系（cuisine）名稱，逗號分隔；無則回空字串。
+export function cuisineText(p: Place): string {
+  return tagNames(p, 'cuisine').join('、')
+}
+
+// 價位：1..4 → $ ~ $$$$；無資料回空字串。
+export function priceText(p: Place): string {
+  return p.price_level ? '$'.repeat(p.price_level) : ''
+}
+
 function esc(s: unknown): string {
   return String(s == null ? '' : s).replace(
     /[&<>"']/g,
