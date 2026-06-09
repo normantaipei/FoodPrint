@@ -222,3 +222,6 @@ data/config.json
 data/images/
 data/thumbs/
 server/.env
+
+# 烤好連線 / 讀寫 token 的 skill 包（勿進版控）
+dist/

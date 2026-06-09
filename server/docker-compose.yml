@@ -67,11 +67,15 @@ services:
     environment:
       # 注入給 nginx 代理的讀取 token（由 install.sh 從 .env 推導寫入）。
       FOODPRINT_PROXY_TOKEN: ${FOODPRINT_PROXY_TOKEN:-}
-      # 只讓 envsubst 替換我們的變數，保留 nginx 內建 $uri/$host/$args/$1 等。
-      NGINX_ENVSUBST_FILTER: "FOODPRINT_PROXY_TOKEN"
+      # skill 下載的門票 token（= 讀寫 token；由 install.sh 寫入）。
+      FOODPRINT_SKILL_TOKEN: ${FOODPRINT_SKILL_TOKEN:-}
+      # 只讓 envsubst 替換我們的 FOODPRINT_* 變數，保留 nginx 內建 $uri/$host/$args/$1 等。
+      NGINX_ENVSUBST_FILTER: "FOODPRINT_"
     volumes:
       - ../web/public:/usr/share/nginx/html:ro
       - ../web/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      # 烤好的 skill zip（install.sh 產到 ../dist）放出來給下載。
+      - ../dist:/usr/share/nginx/dist:ro
     ports:
       - "${WEB_PORT:-8080}:80"
 

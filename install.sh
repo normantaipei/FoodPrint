@@ -233,6 +233,18 @@ envset API_PORT "$API_PORT"
 envset WEB_PORT "$WEB_PORT"
 ok "後端埠 ${API_PORT}、地圖前端埠 ${WEB_PORT}（已避開占用中的埠）"
 
+# 2.5) 烤 skill zip：把後端位址 + 讀寫 token 烤進 data/config.json，供下載 / 上傳。
+#      用區網 IP（不是 localhost）當位址，這樣別台機器 / Claude 上傳後才連得到後端。
+IP="$(lan_ip)"
+BASE_URL="${BASE_URL:-http://${IP}:${API_PORT}}"
+envset FOODPRINT_SKILL_TOKEN "$RW_TOKEN"   # nginx 下載門票（= 讀寫 token）
+if FOODPRINT_BASE_URL="$BASE_URL" FOODPRINT_TOKEN="$RW_TOKEN" bash "$REPO_ROOT/scripts/build_skill_zip.sh" >/dev/null 2>&1; then
+  ok "已打包 skill（連線烤入 ${BASE_URL}）→ dist/foodprint-skill.zip"
+else
+  warn "skill 打包失敗，稍後可手動：FOODPRINT_BASE_URL=$BASE_URL FOODPRINT_TOKEN=<讀寫token> bash scripts/build_skill_zip.sh"
+fi
+[ "$IP" = "localhost" ] && warn "偵測不到區網 IP，skill 連線暫用 localhost；要讓別台機器用，請以 BASE_URL=http://<本機IP>:${API_PORT} 重跑。"
+
 # 3) 啟動 ----------------------------------------------------------------
 bold "🚀 部署中（docker compose up -d --build）…"
 dc up -d --build
@@ -258,17 +270,24 @@ if [ -n "$ready" ]; then
 fi
 
 # 6) 總結 ----------------------------------------------------------------
-IP="$(lan_ip)"
+HOST_FOR_URL="$([ "$IP" != "localhost" ] && echo "$IP" || echo localhost)"
+SKILL_URL="http://${HOST_FOR_URL}:${WEB_PORT}/skill/foodprint-skill.zip?t=${RW_TOKEN}"
 echo
 bold "✅ 完成！"
 echo
 printf "  \033[1m地圖前端\033[0m   http://localhost:%s\n" "$WEB_PORT"
 [ "$IP" != "localhost" ] && printf "             區網其他裝置：http://%s:%s\n" "$IP" "$WEB_PORT"
 printf "  \033[1m後端 API\033[0m   http://localhost:%s   （健康檢查 /health）\n" "$API_PORT"
+printf "  \033[1m下載 skill\033[0m  %s\n" "$SKILL_URL"
+echo
+info "skill 已烤好連線（${BASE_URL} + 讀寫 token）：用上面的網址下載 foodprint-skill.zip，"
+info "  → Claude Desktop → 設定 → Capabilities/Skills → Upload skill → 選這個 zip → 啟用，上傳即連線。"
+info "  （也可在這台直接用：ln -s \"$REPO_ROOT\" ~/.claude/skills/foodprint）"
+info "  注意：入庫 / 刪除是區網限定（require_lan），要在區網內的 Claude Code 跑；查詢不限。"
 echo
 info "專案位置：$REPO_ROOT"
-info "讀寫 token（入庫 / 刪除用）：$RW_TOKEN"
+info "讀寫 token（入庫 / 刪除 / 下載 skill）：$RW_TOKEN"
 info "唯讀 token（給只查詢的人）：$RO_TOKEN"
 info "秘密與埠都在 server/.env（不進版控）。停止：bash $REPO_ROOT/install.sh --down"
 echo
-bold "下一步：在 Claude 對話貼 Google Maps 連結 / 照片，說「加進我的口袋名單」，再回地圖頁看 pin 📍"
+bold "下一步：下載並裝上 skill，或在對話貼 Google Maps 連結 / 照片說「加進我的口袋名單」，再回地圖頁看 pin 📍"

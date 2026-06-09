@@ -48,7 +48,13 @@ curl -fsSL https://raw.githubusercontent.com/normantaipei/FoodPrint/main/install
 bash install.sh
 ```
 
-跑完會印出地圖網址（含區網 IP，手機 / 其他電腦也能開）、API 位址與兩組 token。
+跑完會印出：地圖網址（含區網 IP）、API 位址、兩組 token，以及一個 **skill 下載網址**——
+腳本會把「後端位址 + 讀寫 token」烤進 `dist/foodprint-skill.zip`，並由前端那個埠提供下載
+（用讀寫 token 當門票 `?t=…`，純看地圖的人拿不到）。下載後上傳到 Claude Desktop
+（設定 → Skills → Upload skill）即「已連線」，免再手動 set；或在本機 `ln -s` 給 Claude Code 用。
+
+> 入庫 / 刪除是區網限定（`require_lan`），要在區網內的 Claude Code 跑；查詢（找店 / 附近）不限。
+
 重跑 = 升級（沿用既有秘密與埠，不會亂跳）。其他：
 
 ```bash
