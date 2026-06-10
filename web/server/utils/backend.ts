@@ -18,9 +18,14 @@ export function backendConfig(event: H3Event) {
 
 // 取「真實 client IP」轉給後端：後端限流（slowapi）讀 X-Forwarded-For 第一段分辨來源。
 // 若不轉發，所有公開訪客都頂著 Nuxt 這一個 IP，60/min 會變成全站共用、一人即可卡死所有人。
-// 有上游代理（Cloudflare 等）時取其 XFF，否則退回 TCP 連線位址。
+//
+// 預設只信任真實 TCP 對端位址。唯有設了 NUXT_TRUST_PROXY=true（代表你前面有「自己
+// 控制的」反代 Caddy / Cloudflare 終止 TLS、會覆寫 XFF）時，才採信上游轉送的 XFF。
+// 否則公開訪客可自帶假 XFF，讓後端 per-IP 限流被輕易繞過。
 export function clientIp(event: H3Event): string {
-  return getRequestIP(event, { xForwardedFor: true }) || ''
+  const cfg = useRuntimeConfig(event)
+  const trustProxy = String((cfg as { trustProxy?: string }).trustProxy || '') === 'true'
+  return getRequestIP(event, { xForwardedFor: trustProxy }) || ''
 }
 
 // 把 runtimeConfig 帶來的 query 子集挑出來（只放行白名單欄位），再補上 token（?t=）。

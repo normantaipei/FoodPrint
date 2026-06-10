@@ -78,8 +78,15 @@ SEARCH_RATE = os.environ.get("FOODPRINT_SEARCH_RATE", "60/minute").strip() or "6
 
 
 def _client_key(request: Request) -> str:
-    xff = request.headers.get("x-forwarded-for")
-    return xff.split(",")[0].strip() if xff else get_remote_address(request)
+    # 限流的識別 key。只有當直連對端本身可信（私網 / loopback / 白名單 CIDR，
+    # 例如 compose 內網裡的 web 代理）時才採信 X-Forwarded-For；否則一律用真實
+    # TCP 對端 IP。不然公開訪客只要自帶一個假 XFF、每次換一個值，就能繞過 per-IP
+    # 限流把整庫慢慢爬光。
+    if _peer_trusted(request):
+        xff = request.headers.get("x-forwarded-for")
+        if xff:
+            return xff.split(",")[0].strip()
+    return get_remote_address(request)
 
 
 limiter = Limiter(key_func=_client_key)
@@ -153,15 +160,22 @@ for _c in os.environ.get("FOODPRINT_SKILL_ALLOW_CIDRS", "").split(","):
             pass
 
 
-def require_lan(request: Request) -> None:
+def _peer_trusted(request: Request) -> bool:
+    """直連對端是否為可信來源：私網 / loopback / link-local，或白名單 CIDR。
+    限流與區網檢查共用這個判斷。"""
     ip = _peer_ip(request)
     if ip is None:
-        raise HTTPException(status_code=403, detail="無法判定來源位址")
+        return False
     if ip.is_private or ip.is_loopback or ip.is_link_local:
-        return
-    if any(ip in net for net in _extra_cidrs):
-        return
-    raise HTTPException(status_code=403, detail="這個端點僅限區網內存取")
+        return True
+    return any(ip in net for net in _extra_cidrs)
+
+
+def require_lan(request: Request) -> None:
+    if _peer_ip(request) is None:
+        raise HTTPException(status_code=403, detail="無法判定來源位址")
+    if not _peer_trusted(request):
+        raise HTTPException(status_code=403, detail="這個端點僅限區網內存取")
 
 
 def require_write_lan(
